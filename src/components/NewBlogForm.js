@@ -1,20 +1,37 @@
 import React, { useState } from 'react'
+import { useDispatch, useHitory } from 'react-redux'
+import { createBlog } from '../reducers/blogReducer'
+import { setNotification } from '../reducers/notificationReducer'
+import { useField } from '../hooks'
+import { useHistory } from 'react-router-dom'
 
-const NewBlogForm = ({ createBlog }) => {
-  const [title, setTitle] = useState('')
-  const [author, setAuthor] = useState('')
-  const [url, setUrl] = useState('')
+const NewBlogForm = () => {
+  const { reset: resetTitle, ...title } = useField('text')
+  const { reset: resetAuthor, ...author } = useField('text')
+  const { reset: resetUrl, ...url } = useField('text')
+
+  const dispatch = useDispatch()
+  const history = useHistory()
 
   const addBlog = (event) => {
     event.preventDefault()
 
-    createBlog({
-      title, author, url
-    })
+    try {
+      dispatch(createBlog({
+        title: title.value,
+        author: author.value,
+        url: url.value
+      }))
 
-    setTitle('')
-    setAuthor('')
-    setUrl('')
+      resetTitle()
+      resetAuthor()
+      resetUrl()
+
+      dispatch(setNotification('you created "' + title.value + '"', 'success', 5))
+      history.push('/')
+    } catch (exception) {
+      dispatch(setNotification('error creating new blog', 'error', 5))
+    }
   }
 
   return (
@@ -25,28 +42,22 @@ const NewBlogForm = ({ createBlog }) => {
           title:
           <input
             id='add-title'
-            type="text"
-            value={title}
             name="Title"
-            onChange={({ target }) => setTitle(target.value)}
+            {...title}
           />
           <br />
           author:
           <input
             id='add-author'
-            type="text"
-            value={author}
             name="Author"
-            onChange={({ target }) => setAuthor(target.value)}
+            {...author}
           />
           <br />
           url:
           <input
             id='add-url'
-            type="text"
-            value={url}
             name="Url"
-            onChange={({ target }) => setUrl(target.value)}
+            {...url}
           />
         </p>
         <button id='create-blog' type="submit" onClick={addBlog}>create</button>

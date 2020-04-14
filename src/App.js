@@ -1,158 +1,72 @@
 import React, { useState, useEffect } from 'react'
-import Blog from './components/Blog'
+import { Switch, Route, useRouteMatch, Link } from "react-router-dom"
+import Blogs from './components/Blogs'
+import Users from './components/Users'
 import Notification from './components/Notification'
 import LoginForm from './components/LoginForm'
 import NewBlogForm from './components/NewBlogForm'
-import Togglable from './components/Togglable'
-import blogService from './services/blogs'
-import loginService from './services/login'
+import SingleUser from './components/SingleUser'
+import SingleBlog from './components/SingleBlog'
+import Menu from './components/Menu'
+import { initializeBlogs } from './reducers/blogReducer'
+import { getStoredUser } from './reducers/loginReducer'
+import { initializeUsers } from './reducers/userReducer'
+import { useDispatch, useSelector } from 'react-redux'
 
 const App = () => {
-  const [blogs, setBlogs] = useState([])
-  const [msg, setMsg] = useState(null)
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [user, setUser] = useState(null)
-
-  const blogFormRef = React.createRef()
+  const dispatch = useDispatch()
+  const users = useSelector(state => state.users)
+  const blogs = useSelector(state => state.blogs)
 
   useEffect(() => {
-    const loggedUserJSON = window.localStorage.getItem('loggedUserJSON')
-    if (loggedUserJSON) {
-      blogService.saveUser(JSON.parse(loggedUserJSON))
-      setUser(JSON.parse(loggedUserJSON))
-    }
-  }, [])
+    dispatch(initializeBlogs())
+    dispatch(getStoredUser())
+    dispatch(initializeUsers())
+  }, [dispatch])
 
-  useEffect(() => {
-    blogService.getAll().then(blogs =>
-      setBlogs(blogs.sort((a, b) => a.likes - b.likes))
-    )
-  }, [user])
 
-  const handleLogin = async (event) => {
-    event.preventDefault()
-    try {
-      const tmpUser = await loginService.login({
-        username, password,
-      })
+  const userMatch = useRouteMatch('/users/:id')
+  const user = userMatch
+    ? users.find(user => user.id === userMatch.params.id)
+    : null
 
-      blogService.saveUser(tmpUser)
-      setUser(tmpUser)
-      setUsername('')
-      setPassword('')
-    } catch (exception) {
-      setMsg({
-        type: 'error',
-        content: 'invalid username or password',
-      })
-      setTimeout(() => setMsg(null), 5000)
-    }
-  }
+  const blogMatch = useRouteMatch('/blogs/:id')
+  const blog = blogMatch
+    ? blogs.find(blog => blog.id === blogMatch.params.id)
+    : null
 
-  const handleLogout = () => {
-    blogService.removeUser()
-    setUser(null)
-  }
-
-  const createBlog = async (newBlog) => {
-    blogFormRef.current.toggleVisibility()
-    try {
-      const response = await blogService.create(newBlog)
-      setBlogs(blogs
-        .concat(response)
-        .sort((a, b) => a.likes - b.likes))
-
-      setMsg({
-        type: 'success',
-        content: 'created blog',
-      })
-      setTimeout(() => setMsg(null), 5000)
-    } catch (exception) {
-      setMsg({
-        type: 'error',
-        content: 'unable to create blog',
-      })
-      setTimeout(() => setMsg(null), 5000)
-    }
-  }
-
-  const likeBlog = async (updatedBlog, id) => {
-    try {
-      const response = await blogService.update(updatedBlog, id)
-
-      setBlogs(blogs
-        .filter((blog) => blog.id !== response.id)
-        .concat(response)
-        .sort((a, b) => a.likes - b.likes))
-
-      setMsg({
-        type: 'success',
-        content: 'updated blog',
-      })
-      setTimeout(() => setMsg(null), 5000)
-    } catch (exception) {
-      setMsg({
-        type: 'error',
-        content: 'error updating blog',
-      })
-      setTimeout(() => setMsg(null), 5000)
-    }
-  }
-
-  const deleteBlog = async (id) => {
-    try {
-      await blogService.remove(id)
-
-      setBlogs(blogs
-        .filter((blog) => blog.id !== id)
-        .sort((a, b) => a.likes - b.likes))
-
-      setMsg({
-        type: 'success',
-        content: 'updated blog',
-      })
-      setTimeout(() => setMsg(null), 5000)
-    } catch (exception) {
-      setMsg({
-        type: 'error',
-        content: 'unable to delete blog',
-      })
-      setTimeout(() => setMsg(null), 5000)
-    }
-  }
-
-  if (user === null) {
-    return (
-      <div>
-        <Notification message={msg} />
-        <LoginForm
-          username={username} setUsername={setUsername}
-          password={password} setPassword={setPassword}
-          handleLogin={handleLogin}
-        />
-      </div>
-    )
-  }
 
   return (
     <div>
-      <Notification message={msg} />
-      <h2>blogs</h2>
-      <p>
-        {user.name} logged in
-        <button onClick={handleLogout} >logout</button>
-      </p>
+      <Notification />
+      <Menu />
+      <Switch>
+        <Route path='/create'>
+          <NewBlogForm />
+        </Route>
 
-      <Togglable buttonLabel="create" ref={blogFormRef}>
-        <NewBlogForm createBlog={createBlog} />
-      </Togglable>
+        <Route path='/users/:id'>
+          <SingleUser user={user} />
+        </Route>
 
-      <div id='blog-list'>
-        {blogs.map(blog =>
-          <Blog key={blog.id} blog={blog} likeBlog={likeBlog} deleteBlog={deleteBlog} />
-        )}
-      </div>
+        <Route path='/users'>
+          <Users />
+        </Route>
+
+        <Route path='/blogs/:id'>
+          <SingleBlog blog={blog} />
+        </Route>
+
+        <Route path='/login'>
+          <LoginForm />
+        </Route>
+
+        <Route path='/'>
+          <Blogs id='blog-list' />
+        </Route>
+
+
+      </Switch>
 
     </div>
   )
